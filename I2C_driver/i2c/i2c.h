@@ -2,7 +2,7 @@
  * i2c.h
  *
  * Created: 03.02.2020 15:59:20
- *  Author: Trait
+ *  Author: Daniel Stankiewicz
  */ 
 
 
@@ -22,13 +22,14 @@ struct I2C_ActionParams {
 	enum I2C_Actions eCurrentAction;
 	uint8_t receiverAddr;
 	uint8_t* pTxDataBuffer;
+	uint8_t txBufferLength;
 	uint8_t* pRxDataBuffer;
+	uint8_t rxBufferLength;
 	uint8_t dataCounter;
 };
 
 void i2c_init();
-enum I2C_Actions i2c_eGetActionStatus();
-
-
+void i2c_proceedToAction(struct I2C_ActionParams);
+enum I2C_Actions i2c_eGetActionStatus(void);
 
 #endif /* I2C_H_ */
