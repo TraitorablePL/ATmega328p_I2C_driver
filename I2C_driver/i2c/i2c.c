@@ -53,16 +53,20 @@ ISR(TWI_vect){
 		default:
 			break;
 	}
-	TWCR = (1<<TWINT);
 }
 
 void i2c_init(void){
 	sei();
-
+	
 	TWSR = 0;
 	TWBR = (F_CPU/SCL_CLOCK-16)/2;
 	
-	TWCR |= (1<<TWEN) | (1<<TWIE);
+	TWCR = (1<<TWEN);
+	
+	localParams.receiverAddr = 0;
+	localParams.pRxDataBuffer = 0;
+	localParams.pTxDataBuffer = 0;
+	localParams.eCurrentAction = I2C_Idle;
 }
 
 void i2c_writeAction(void){
@@ -70,60 +74,54 @@ void i2c_writeAction(void){
 		case START:
 			localParams.dataCounter = 0;
 			TWDR = (localParams.receiverAddr<<1) | WRITE;
+			TWCR = (1<<TWEN) | (1<<TWIE) | (1<<TWINT);
 			break;
 		
 		case ADDR_WRITE_ACK:
-			pollingCounter = 0;
-			if(localParams.dataCounter < localParams.txBufferLength) {
-				TWDR = localParams.pTxDataBuffer[localParams.dataCounter];
-				localParams.dataCounter++;
-			} 
-			else
-				TWCR = (1<<TWSTO);
-			break;
-	
-		case ADDR_WRITE_NACK:
-			if(pollingCounter < POLL_LIMIT) {
-				pollingCounter++;
-				localParams.dataCounter = 0;
-				TWDR = (localParams.receiverAddr<<1) | WRITE;
-			}
-			else
-				TWCR = (1<<TWSTO);
-			break;
-	
 		case WRITE_DATA_ACK:
 			pollingCounter = 0;
 			if(localParams.dataCounter < localParams.txBufferLength) {
 				TWDR = localParams.pTxDataBuffer[localParams.dataCounter];
+				TWCR = (1<<TWEN) | (1<<TWIE) | (1<<TWINT);
 				localParams.dataCounter++;
 			}
-			else
-				TWCR = (1<<TWSTO);
+			else {
+				TWCR = (1<<TWEN) | (1<<TWINT) | (1<<TWSTO);
+				localParams.eCurrentAction = I2C_Idle;
+			}
 			break;
-			
+	
+		case ADDR_WRITE_NACK:
 		case WRITE_DATA_NACK:
 			if(pollingCounter < POLL_LIMIT) {
 				TWDR = localParams.pTxDataBuffer[localParams.dataCounter-1];
+				TWCR = (1<<TWEN) | (1<<TWIE) | (1<<TWINT);
 				pollingCounter++;
 			}
-			else
-				TWCR = (1<<TWSTO);
+			else {
+				TWCR = (1<<TWEN) | (1<<TWINT) | (1<<TWSTO);
+				localParams.eCurrentAction = I2C_Idle;
+			}
 			break;
 	}
 }
 
+//TODO
 void i2c_readAction(void){
 }
 
+//TODO
 void i2c_writeAndReadAction(void){
 	
 }
 
 void i2c_proceedToAction(struct I2C_ActionParams ActionParams){
+	
+	while(localParams.eCurrentAction != I2C_Idle){}
+		
 	pollingCounter = 0;
 	localParams = ActionParams;
-	TWCR |= (1<<TWSTA);
+	TWCR = (1<<TWSTA) | (1<<TWIE) | (1<<TWEN) | (1<<TWINT);
 }
 
 enum I2C_Actions i2c_eGetActionStatus(void){
